@@ -18,6 +18,7 @@ import android.graphics.ImageFormat;
 import android.graphics.Matrix;
 import android.graphics.RectF;
 import android.graphics.SurfaceTexture;
+import android.graphics.YuvImage;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
@@ -78,10 +79,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             Manifest.permission.RECORD_AUDIO,
     };
 
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        mButtonSwitchCamera = findViewById(R.id.switchCamera);
+        mButtonSwitchCamera.setOnClickListener(this);
+        mTextureView = findViewById(R.id.texture);
+
+        Log.d(TAG, "onCreate: bruce >>> mTextureView.isAvailable():" + mTextureView.isAvailable());
+        if (mTextureView.isAvailable()) {
+            openCamera(mTextureView.getWidth(), mTextureView.getHeight());
+        } else {
+            mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
+        }
+    }
+
     private CameraDevice.StateCallback mStateCallback = new CameraDevice.StateCallback() {
 
         @Override
         public void onOpened(@NonNull CameraDevice cameraDevice) {
+            Log.d(TAG, "onOpened: bruce >>> flag");
             mCameraDevice = cameraDevice;
             startPreview();
             mCameraOpenCloseLock.release();
@@ -92,6 +111,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         @Override
         public void onDisconnected(@NonNull CameraDevice cameraDevice) {
+            Log.d(TAG, "onDisconnected: bruce >>> flag");
             mCameraOpenCloseLock.release();
             cameraDevice.close();
             mCameraDevice = null;
@@ -99,6 +119,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         @Override
         public void onError(@NonNull CameraDevice cameraDevice, int error) {
+            Log.d(TAG, "onError: bruce >>> flag");
             mCameraOpenCloseLock.release();
             cameraDevice.close();
             mCameraDevice = null;
@@ -106,18 +127,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     };
 
-    private TextureView.SurfaceTextureListener mSurfaceTextureListener
-            = new TextureView.SurfaceTextureListener() {
-
+    private TextureView.SurfaceTextureListener mSurfaceTextureListener = new TextureView.SurfaceTextureListener() {
         @Override
-        public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture,
-                                              int width, int height) {
+        public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
+            Log.d(TAG, "onSurfaceTextureAvailable: bruce >>> width=" + width + ",height=" + height);
             openCamera(width, height);
         }
 
         @Override
-        public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture,
-                                                int width, int height) {
+        public void onSurfaceTextureSizeChanged(SurfaceTexture surfaceTexture, int width, int height) {
+            Log.d(TAG, "onSurfaceTextureSizeChanged: bruce >>> surfaceTexture:" + surfaceTexture + ",width:" + width + ",height" + height);
             configureTransform(width, height);
         }
 
@@ -129,39 +148,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         @Override
         public void onSurfaceTextureUpdated(SurfaceTexture surfaceTexture) {
         }
-
     };
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-
-        mButtonSwitchCamera = findViewById(R.id.switchCamera);
-        mButtonSwitchCamera.setOnClickListener(this);
-        mTextureView = findViewById(R.id.texture);
-
-        if (mTextureView.isAvailable()) {
-            openCamera(mTextureView.getWidth(), mTextureView.getHeight());
-        } else {
-            mTextureView.setSurfaceTextureListener(mSurfaceTextureListener);
-        }
-    }
-
-    @Override
-    public void onPause() {
-        closeCamera();
-//        stopBackgroundThread();
-        super.onPause();
-    }
 
     @Override
     public void onClick(View view) {
         switch (view.getId()) {
             case R.id.switchCamera:
                 // switch camera
+                switchCamera();
                 break;
         }
+    }
+
+    private void switchCamera() {
+        Log.d(TAG, "switchCamera: bruce >>>");
     }
 
     private void startPreview() {
@@ -169,59 +169,59 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             return;
         }
         try {
-            openFile();
+            Log.d(TAG, "startPreview: bruce >>> flag");
+//            openFile();
             closePreviewSession();
             SurfaceTexture texture = mTextureView.getSurfaceTexture();
             assert texture != null;
             texture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
             mCaptureBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
-            mImageReader = ImageReader.newInstance(mPreviewSize.getWidth(), mPreviewSize.getHeight(), ImageFormat.YUV_420_888, 2);
+//            mImageReader = ImageReader.newInstance(mPreviewSize.getWidth(), mPreviewSize.getHeight(), ImageFormat.YUV_420_888, 2);
             //设置有图像数据流时监听
-            mImageReader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
-                @Override
-                public void onImageAvailable(ImageReader reader) {
-                    Log.d(TAG, "onImageAvailable: get image data");
+//            mImageReader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
+//                @Override
+//                public void onImageAvailable(ImageReader reader) {
+//                    Log.d(TAG, "onImageAvailable: get image data");
                     //需要调用acquireLatestImage()和close(),不然会卡顿
-                    Image image = reader.acquireLatestImage();
+//                    Image image = reader.acquireLatestImage();
                     //将这帧数据转成字节数组，类似于Camera1的PreviewCallback回调的预览帧数据
-                    ByteBuffer buffer = image.getPlanes()[0].getBuffer();
-                    byte[] data = new byte[buffer.remaining()];
-
-                    synchronized (file) {
-                        if (file.length() > 1024 * 1024) {
-                            resetFile();
-                        }
-                    }
-                    try {
-
-                        if (outputStream != null) {
-                            outputStream.write(data);
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                    image.close();
-                }
-            }, null);
+//                    Log.d(TAG, "onImageAvailable: bruce >>> image:" + image);
+//                    if (image != null) {
+//                        ByteBuffer buffer = image.getPlanes()[0].getBuffer();
+//                        byte[] data = new byte[buffer.remaining()];
+//                        synchronized (file) {
+//                            if (file.length() > 1024 * 1024 * 1024) {
+//                                resetFile();
+//                            }
+//                        }
+//                        try {
+//                            if (outputStream != null) {
+//                                outputStream.write(data);
+//                            }
+//                        } catch (Exception e) {
+//                            e.printStackTrace();
+//                        }
+//                        image.close();
+//                    }
+//                }
+//            }, null);
 
             //设置获取预览数据
-            mCaptureBuilder.addTarget(mImageReader.getSurface());
+//            mCaptureBuilder.addTarget(mImageReader.getSurface());
 
             Surface previewSurface = new Surface(texture);
             mCaptureBuilder.addTarget(previewSurface);
-
-            mCameraDevice.createCaptureSession(Arrays.asList(previewSurface, mImageReader.getSurface()),
-                    new CameraCaptureSession.StateCallback() {
-
+            mCameraDevice.createCaptureSession(Arrays.asList(previewSurface), new CameraCaptureSession.StateCallback() {
                         @Override
                         public void onConfigured(@NonNull CameraCaptureSession session) {
+                            Log.d(TAG, "onConfigured: bruce >>> flag");
                             mPreviewSession = session;
                             updatePreview();
                         }
 
                         @Override
                         public void onConfigureFailed(@NonNull CameraCaptureSession session) {
-                            Log.e(TAG, "onConfigureFailed: ");
+                            Log.e(TAG, "onConfigureFailed: bruce >>> flag");
                         }
                     }, null);
         } catch (CameraAccessException e) {
@@ -229,13 +229,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+    boolean isFirstFilePathPrint = true;
     private void openFile() {
         String captureFileName = this.getExternalFilesDir("").toString() + "/yuv";
-//        Log.d(TAG, "writeToFile: bruce >>> captureFile=" + captureFileName);
+        // 每刷一帧打印一次，日志太多注释掉
+        if (isFirstFilePathPrint) {
+            Log.d(TAG, "writeToFile: bruce >>> captureFile=" + captureFileName);
+            isFirstFilePathPrint = false;
+        }
+
         file = new File(captureFileName);
         try {
             outputStream = new FileOutputStream(file);
-
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -257,46 +262,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    private void requestVideoPermissions() {
-        if (ActivityCompat.shouldShowRequestPermissionRationale(this, VIDEO_PERMISSIONS[0])) {
-            new ConfirmationDialog().show(getSupportFragmentManager(), FRAGMENT_DIALOG);
-        } else {
-            ActivityCompat.requestPermissions(this, VIDEO_PERMISSIONS, REQUEST_VIDEO_PERMISSIONS);
-        }
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        Log.d(TAG, "onRequestPermissionsResult");
-        if (requestCode == REQUEST_VIDEO_PERMISSIONS) {
-            if (grantResults.length == VIDEO_PERMISSIONS.length) {
-                for (int result : grantResults) {
-                    if (result != PackageManager.PERMISSION_GRANTED) {
-                        ErrorDialog.newInstance(getString(R.string.permission_request))
-                                .show(getSupportFragmentManager(), FRAGMENT_DIALOG);
-                        break;
-                    }
-                }
-            } else {
-                ErrorDialog.newInstance(getString(R.string.permission_request))
-                        .show(getSupportFragmentManager(), FRAGMENT_DIALOG);
-            }
-        } else {
-            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        }
-    }
-
-    private boolean hasPermissionsGranted(String[] permissions) {
-        for (String permission : permissions) {
-            if (ActivityCompat.checkSelfPermission(this, permission)
-                    != PackageManager.PERMISSION_GRANTED) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     @SuppressWarnings("MissingPermission")
     private void openCamera(int width, int height) {
         if (!hasPermissionsGranted(VIDEO_PERMISSIONS)) {
@@ -306,33 +271,35 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         CameraManager manager = (CameraManager) this.getSystemService(Context.CAMERA_SERVICE);
         try {
-            Log.d(TAG, "tryAcquire");
-            if (!mCameraOpenCloseLock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
-                throw new RuntimeException("Time out waiting to lock camera opening.");
-            }
-            String cameraId = manager.getCameraIdList()[0];
+            //获取摄像头列表
+            for(String cameraId : manager.getCameraIdList()) {
+                CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
+                //使用前置摄像头
+                Integer facing = characteristics.get(CameraCharacteristics.LENS_FACING);
+                if(facing!=null && facing == CameraCharacteristics.LENS_FACING_FRONT) {
+                    if (!mCameraOpenCloseLock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
+                        throw new RuntimeException("Time out waiting to lock camera opening.");
+                    }
 
-            // Choose the sizes for camera preview and video recording
-            CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
-            mSensorOrientation = characteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
-            StreamConfigurationMap map = characteristics
-                    .get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
-            if (map == null) {
-                throw new RuntimeException("Cannot get available preview/video sizes");
-            }
+                    StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+                    if (map == null) {
+                        throw new RuntimeException("Cannot get available preview/video sizes");
+                    }
+                    mPreviewSize = chooseVideoSize(map.getOutputSizes(SurfaceTexture.class));
+                    Log.d(TAG, "openCamera: bruce >>> mVideoSize width:" + mPreviewSize.getWidth() + ",height:" + mPreviewSize.getHeight());
 
-            mVideoSize = chooseVideoSize(map.getOutputSizes(SurfaceTexture.class));
-            mPreviewSize = chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class),
-                    width, height, mVideoSize);
-
-            int orientation = getResources().getConfiguration().orientation;
-            if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                mTextureView.setAspectRatio(mPreviewSize.getWidth(), mPreviewSize.getHeight());
-            } else {
-                mTextureView.setAspectRatio(mPreviewSize.getHeight(), mPreviewSize.getWidth());
+                    int orientation = getResources().getConfiguration().orientation;
+                    Log.d(TAG, "openCamera: bruce >>> orientation:" + orientation);
+                    if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                        mTextureView.setAspectRatio(mPreviewSize.getWidth(), mPreviewSize.getHeight());
+                    } else {
+                        mTextureView.setAspectRatio(mPreviewSize.getHeight(), mPreviewSize.getWidth());
+                    }
+                    configureTransform(width, height);
+                    manager.openCamera(cameraId, mStateCallback, null);
+                    break;
+                }
             }
-            configureTransform(width, height);
-            manager.openCamera(cameraId, mStateCallback, null);
         } catch (CameraAccessException e) {
             e.printStackTrace();
             finish();
@@ -344,10 +311,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void configureTransform(int viewWidth, int viewHeight) {
+        Log.d(TAG, "configureTransform: bruce >>> width:" + viewWidth + ",height:" + viewHeight);
         if (null == mTextureView || null == mPreviewSize) {
             return;
         }
         int rotation = this.getWindowManager().getDefaultDisplay().getRotation();
+        Log.d(TAG, "configureTransform: bruce >>> rotation:" + rotation);
         Matrix matrix = new Matrix();
         RectF viewRect = new RectF(0, 0, viewWidth, viewHeight);
         RectF bufferRect = new RectF(0, 0, mPreviewSize.getHeight(), mPreviewSize.getWidth());
@@ -370,17 +339,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             return;
         }
         try {
-            setUpCaptureRequestBuilder(mCaptureBuilder);
-//            HandlerThread thread = new HandlerThread("CameraPreview");
-//            thread.start();
+            mCaptureBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
             mPreviewSession.setRepeatingRequest(mCaptureBuilder.build(), null, null);
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
-    }
-
-    private void setUpCaptureRequestBuilder(CaptureRequest.Builder builder) {
-        builder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
     }
 
     private void closeCamera() {
@@ -397,7 +360,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 mImageReader = null;
             }
 
-            closeFile();
+//            closeFile();
         } catch (InterruptedException e) {
             throw new RuntimeException("Interrupted while trying to lock camera closing.");
         } finally {
@@ -414,45 +377,56 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private static Size chooseVideoSize(Size[] choices) {
         for (Size size : choices) {
-            if (size.getWidth() == size.getHeight() * 4 / 3 && size.getWidth() <= 1080) {
+            Log.d(TAG, "chooseVideoSize: bruce >>> surfaceTexture width:" + size.getWidth() + ",height:" + size.getHeight());
+        }
+
+        for (Size size : choices) {
+            if (size.getWidth() == size.getHeight() * 16 / 9 && size.getWidth() <= 1920) {
                 return size;
             }
         }
-        Log.e(TAG, "Couldn't find any suitable video size");
+        Log.e(TAG, "bruce >>> Couldn't find any suitable video size");
         return choices[choices.length - 1];
     }
 
-    private static Size chooseOptimalSize(Size[] choices, int width, int height, Size aspectRatio) {
-        List<Size> bigEnough = new ArrayList<>();
-        int w = aspectRatio.getWidth();
-        int h = aspectRatio.getHeight();
-        for (Size option : choices) {
-            if (option.getHeight() == option.getWidth() * h / w &&
-                    option.getWidth() >= width && option.getHeight() >= height) {
-                bigEnough.add(option);
-            }
-        }
-
-        // Pick the smallest of those, assuming we found any
-        if (bigEnough.size() > 0) {
-            return Collections.min(bigEnough, new CompareSizesByArea());
+    private void requestVideoPermissions() {
+        if (ActivityCompat.shouldShowRequestPermissionRationale(this, VIDEO_PERMISSIONS[0])) {
+            new ConfirmationDialog().show(getSupportFragmentManager(), FRAGMENT_DIALOG);
         } else {
-            Log.e(TAG, "Couldn't find any suitable preview size");
-            return choices[0];
+            ActivityCompat.requestPermissions(this, VIDEO_PERMISSIONS, REQUEST_VIDEO_PERMISSIONS);
         }
     }
 
-    static class CompareSizesByArea implements Comparator<Size> {
-        @Override
-        public int compare(Size lhs, Size rhs) {
-            // We cast here to ensure the multiplications won't overflow
-            return Long.signum((long) lhs.getWidth() * lhs.getHeight() -
-                    (long) rhs.getWidth() * rhs.getHeight());
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        Log.d(TAG, "onRequestPermissionsResult");
+        if (requestCode == REQUEST_VIDEO_PERMISSIONS) {
+            if (grantResults.length == VIDEO_PERMISSIONS.length) {
+                for (int result : grantResults) {
+                    if (result != PackageManager.PERMISSION_GRANTED) {
+                        ErrorDialog.newInstance(getString(R.string.permission_request)).show(getSupportFragmentManager(), FRAGMENT_DIALOG);
+                        break;
+                    }
+                }
+            } else {
+                ErrorDialog.newInstance(getString(R.string.permission_request)).show(getSupportFragmentManager(), FRAGMENT_DIALOG);
+            }
+        } else {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         }
+    }
+
+    private boolean hasPermissionsGranted(String[] permissions) {
+        for (String permission : permissions) {
+            if (ActivityCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED) {
+                return false;
+            }
+        }
+        return true;
     }
 
     public static class ErrorDialog extends DialogFragment {
-
         private static final String ARG_MESSAGE = "message";
 
         public static ErrorDialog newInstance(String message) {
@@ -476,7 +450,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     })
                     .create();
         }
-
     }
 
     public static class ConfirmationDialog extends DialogFragment {
@@ -487,8 +460,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
-                            ActivityCompat.requestPermissions(getActivity(), VIDEO_PERMISSIONS,
-                                    REQUEST_VIDEO_PERMISSIONS);
+                            ActivityCompat.requestPermissions(getActivity(), VIDEO_PERMISSIONS, REQUEST_VIDEO_PERMISSIONS);
                         }
                     })
                     .setNegativeButton(android.R.string.cancel,
@@ -500,5 +472,35 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             })
                     .create();
         }
+    }
+
+    @Override
+    public void onPause() {
+        Log.d(TAG, "onPause: bruce >>>");
+        closeCamera();
+        super.onPause();
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+    }
+
+    @Override
+    public void onDestroy() {
+        Log.d(TAG, "onDestroy: bruce >>>");
+        super.onDestroy();
+    }
+
+    @Override
+    public void finish() {
+        Log.d(TAG, "finish: bruce >>>");
+        super.finish();
+    }
+
+    @Override
+    public void onStop() {
+        Log.d(TAG, "onStop: bruce >>>");
+        super.onStop();
     }
 }

@@ -18,13 +18,14 @@ package com.touchtech.camera2_android;
 
 import android.content.Context;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.TextureView;
 
 /**
  * A {@link TextureView} that can be adjusted to a specified aspect ratio.
  */
 public class AutoFitTextureView extends TextureView {
-
+    String TAG = this.getClass().getSimpleName();
     private int mRatioWidth = 0;
     private int mRatioHeight = 0;
 
@@ -59,17 +60,22 @@ public class AutoFitTextureView extends TextureView {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        Log.d(TAG, "onMeasure: bruce >>> flag widthMeasureSpec:"+widthMeasureSpec + ",heightMeasureSpec:" + heightMeasureSpec);
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
         int width = MeasureSpec.getSize(widthMeasureSpec);
         int height = MeasureSpec.getSize(heightMeasureSpec);
+        Log.d(TAG, "onMeasure: bruce >>> width:" + width + ",height:" + height);
         if (0 == mRatioWidth || 0 == mRatioHeight) {
             setMeasuredDimension(width, height);
         } else {
-            if (width < height * mRatioWidth / mRatioHeight) {
-                setMeasuredDimension(width, width * mRatioHeight / mRatioWidth);
-            } else {
-                setMeasuredDimension(height * mRatioWidth / mRatioHeight, height);
-            }
+            Log.d(TAG, "onMeasure: bruce >>> aspect:width=" + mRatioWidth + ",height=" + mRatioHeight);
+            setMeasuredDimension(width,  height);
+//            if (width < height * mRatioWidth / mRatioHeight) {
+//                //按宽高比显示界面，可能会有余留空间
+//                setMeasuredDimension(width,  width* mRatioHeight / mRatioWidth);
+//            } else {
+//                setMeasuredDimension(height * mRatioWidth / mRatioHeight, height);
+//            }
         }
     }
 
