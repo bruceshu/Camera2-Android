@@ -60,22 +60,23 @@ public class AutoFitTextureView extends TextureView {
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        Log.d(TAG, "onMeasure: bruce >>> flag widthMeasureSpec:"+widthMeasureSpec + ",heightMeasureSpec:" + heightMeasureSpec);
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
         int width = MeasureSpec.getSize(widthMeasureSpec);
         int height = MeasureSpec.getSize(heightMeasureSpec);
         Log.d(TAG, "onMeasure: bruce >>> width:" + width + ",height:" + height);
+        Log.d(TAG, "onMeasure: bruce >>> aspect:width=" + mRatioWidth + ",height=" + mRatioHeight);
         if (0 == mRatioWidth || 0 == mRatioHeight) {
             setMeasuredDimension(width, height);
         } else {
-            Log.d(TAG, "onMeasure: bruce >>> aspect:width=" + mRatioWidth + ",height=" + mRatioHeight);
-            setMeasuredDimension(width,  height);
-//            if (width < height * mRatioWidth / mRatioHeight) {
-//                //按宽高比显示界面，可能会有余留空间
-//                setMeasuredDimension(width,  width* mRatioHeight / mRatioWidth);
-//            } else {
-//                setMeasuredDimension(height * mRatioWidth / mRatioHeight, height);
-//            }
+            //视频宽高比例大于显示窗口比例，则以显示窗口宽为基准，上下留黑边，高=宽/视频宽高比。反之，以显示窗口高为基准，左右留黑边，宽=高*视频宽高比。
+            if(mRatioWidth/mRatioHeight > width/height) {
+                Log.d(TAG, "onMeasure: bruce >>> 上下留黑边");
+                setMeasuredDimension(width,  width*mRatioHeight/mRatioWidth);
+            } else {
+                Log.d(TAG, "onMeasure: bruce >>> 左右留黑边");
+                setMeasuredDimension(height*mRatioWidth/mRatioHeight, height);
+            }
+
         }
     }
 

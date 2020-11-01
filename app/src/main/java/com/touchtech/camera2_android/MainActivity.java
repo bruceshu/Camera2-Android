@@ -57,19 +57,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private static final String TAG = MainActivity.class.getSimpleName();
 
     private AutoFitTextureView mTextureView;
-    Button mButtonSwitchCamera;
-
     private CameraDevice mCameraDevice;
     private CameraCaptureSession mPreviewSession;
     private CaptureRequest.Builder mCaptureBuilder;
     private ImageReader mImageReader;
 
+    Button mButtonSwitchCamera;
+
     File file;
     FileOutputStream outputStream;
 
     private Semaphore mCameraOpenCloseLock = new Semaphore(1);
-    private Integer mSensorOrientation;
-    private Size mVideoSize;
     private Size mPreviewSize;
 
     private static final String FRAGMENT_DIALOG = "dialog";
@@ -88,7 +86,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mButtonSwitchCamera.setOnClickListener(this);
         mTextureView = findViewById(R.id.texture);
 
-        Log.d(TAG, "onCreate: bruce >>> mTextureView.isAvailable():" + mTextureView.isAvailable());
+//        Log.d(TAG, "onCreate: bruce >>> mTextureView.isAvailable():" + mTextureView.isAvailable());
         if (mTextureView.isAvailable()) {
             openCamera(mTextureView.getWidth(), mTextureView.getHeight());
         } else {
@@ -97,7 +95,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private CameraDevice.StateCallback mStateCallback = new CameraDevice.StateCallback() {
-
         @Override
         public void onOpened(@NonNull CameraDevice cameraDevice) {
             Log.d(TAG, "onOpened: bruce >>> flag");
@@ -105,6 +102,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             startPreview();
             mCameraOpenCloseLock.release();
             if (null != mTextureView) {
+                Log.d(TAG, "onOpened: bruce >>> mTextureView width:" + mTextureView.getWidth() + ", height:" + mTextureView.getHeight());
                 configureTransform(mTextureView.getWidth(), mTextureView.getHeight());
             }
         }
@@ -130,7 +128,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private TextureView.SurfaceTextureListener mSurfaceTextureListener = new TextureView.SurfaceTextureListener() {
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
-            Log.d(TAG, "onSurfaceTextureAvailable: bruce >>> width=" + width + ",height=" + height);
+            Log.d(TAG, "onSurfaceTextureAvailable: bruce >>> surfaceTexture:" + surfaceTexture + ",width=" + width + ",height=" + height);
             openCamera(width, height);
         }
 
@@ -150,118 +148,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     };
 
-    @Override
-    public void onClick(View view) {
-        switch (view.getId()) {
-            case R.id.switchCamera:
-                // switch camera
-                switchCamera();
-                break;
-        }
-    }
-
-    private void switchCamera() {
-        Log.d(TAG, "switchCamera: bruce >>>");
-    }
-
-    private void startPreview() {
-        if (null == mCameraDevice || !mTextureView.isAvailable() || null == mPreviewSize) {
-            return;
-        }
-        try {
-            Log.d(TAG, "startPreview: bruce >>> flag");
-//            openFile();
-            closePreviewSession();
-            SurfaceTexture texture = mTextureView.getSurfaceTexture();
-            assert texture != null;
-            texture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
-            mCaptureBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
-//            mImageReader = ImageReader.newInstance(mPreviewSize.getWidth(), mPreviewSize.getHeight(), ImageFormat.YUV_420_888, 2);
-            //设置有图像数据流时监听
-//            mImageReader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
-//                @Override
-//                public void onImageAvailable(ImageReader reader) {
-//                    Log.d(TAG, "onImageAvailable: get image data");
-                    //需要调用acquireLatestImage()和close(),不然会卡顿
-//                    Image image = reader.acquireLatestImage();
-                    //将这帧数据转成字节数组，类似于Camera1的PreviewCallback回调的预览帧数据
-//                    Log.d(TAG, "onImageAvailable: bruce >>> image:" + image);
-//                    if (image != null) {
-//                        ByteBuffer buffer = image.getPlanes()[0].getBuffer();
-//                        byte[] data = new byte[buffer.remaining()];
-//                        synchronized (file) {
-//                            if (file.length() > 1024 * 1024 * 1024) {
-//                                resetFile();
-//                            }
-//                        }
-//                        try {
-//                            if (outputStream != null) {
-//                                outputStream.write(data);
-//                            }
-//                        } catch (Exception e) {
-//                            e.printStackTrace();
-//                        }
-//                        image.close();
-//                    }
-//                }
-//            }, null);
-
-            //设置获取预览数据
-//            mCaptureBuilder.addTarget(mImageReader.getSurface());
-
-            Surface previewSurface = new Surface(texture);
-            mCaptureBuilder.addTarget(previewSurface);
-            mCameraDevice.createCaptureSession(Arrays.asList(previewSurface), new CameraCaptureSession.StateCallback() {
-                        @Override
-                        public void onConfigured(@NonNull CameraCaptureSession session) {
-                            Log.d(TAG, "onConfigured: bruce >>> flag");
-                            mPreviewSession = session;
-                            updatePreview();
-                        }
-
-                        @Override
-                        public void onConfigureFailed(@NonNull CameraCaptureSession session) {
-                            Log.e(TAG, "onConfigureFailed: bruce >>> flag");
-                        }
-                    }, null);
-        } catch (CameraAccessException e) {
-            e.printStackTrace();
-        }
-    }
-
-    boolean isFirstFilePathPrint = true;
-    private void openFile() {
-        String captureFileName = this.getExternalFilesDir("").toString() + "/yuv";
-        // 每刷一帧打印一次，日志太多注释掉
-        if (isFirstFilePathPrint) {
-            Log.d(TAG, "writeToFile: bruce >>> captureFile=" + captureFileName);
-            isFirstFilePathPrint = false;
-        }
-
-        file = new File(captureFileName);
-        try {
-            outputStream = new FileOutputStream(file);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void resetFile() {
-        closeFile();
-        file.delete();
-        openFile();
-    }
-
-    private void closeFile() {
-        if (outputStream != null) {
-            try {
-                outputStream.close();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
     @SuppressWarnings("MissingPermission")
     private void openCamera(int width, int height) {
         if (!hasPermissionsGranted(VIDEO_PERMISSIONS)) {
@@ -276,7 +162,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
                 //使用前置摄像头
                 Integer facing = characteristics.get(CameraCharacteristics.LENS_FACING);
-                if(facing!=null && facing == CameraCharacteristics.LENS_FACING_FRONT) {
+                if(facing != null && facing == CameraCharacteristics.LENS_FACING_FRONT) {
                     if (!mCameraOpenCloseLock.tryAcquire(2500, TimeUnit.MILLISECONDS)) {
                         throw new RuntimeException("Time out waiting to lock camera opening.");
                     }
@@ -310,6 +196,115 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
+    private void startPreview() {
+        if (null == mCameraDevice || !mTextureView.isAvailable() || null == mPreviewSize) {
+            return;
+        }
+        try {
+            Log.d(TAG, "startPreview: bruce >>> flag");
+            openFile();
+            closePreviewSession();
+            SurfaceTexture texture = mTextureView.getSurfaceTexture();
+            assert texture != null;
+            Log.d(TAG, "startPreview: bruce >>> mPreviewSize width:" + mPreviewSize.getWidth() + ",height:" + mPreviewSize.getHeight());
+            texture.setDefaultBufferSize(mPreviewSize.getWidth(), mPreviewSize.getHeight());
+            mCaptureBuilder = mCameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+            mImageReader = ImageReader.newInstance(mPreviewSize.getWidth(), mPreviewSize.getHeight(), ImageFormat.JPEG, 2);
+//            设置有图像数据流时监听
+            mImageReader.setOnImageAvailableListener(new ImageReader.OnImageAvailableListener() {
+                @Override
+                public void onImageAvailable(ImageReader reader) {
+//                    Log.d(TAG, "onImageAvailable: bruce >>> get image data");
+//                    需要调用acquireLatestImage()和close(),不然会卡顿
+                    Image image = reader.acquireLatestImage();
+//                    将这帧数据转成字节数组，类似于Camera1的PreviewCallback回调的预览帧数据
+//                    Log.d(TAG, "onImageAvailable: bruce >>> image:" + image);
+                    if (image != null) {
+                        ByteBuffer buffer = image.getPlanes()[0].getBuffer();
+                        byte[] data = new byte[buffer.remaining()];
+                        buffer.get(data);
+
+                        synchronized (file) {
+                            if (file.length() > 1024 * 1024 * 1024) {
+                                resetFile();
+                            }
+                        }
+                        try {
+                            if (outputStream != null) {
+                                outputStream.write(data);
+                            }
+                            closeFile();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+
+                        image.close();
+                    }
+                }
+            }, null);
+
+            List<Surface> surfaces = new ArrayList<>();
+
+            //设置获取预览数据
+            Surface recorderSurface = mImageReader.getSurface();
+            surfaces.add(recorderSurface);
+            mCaptureBuilder.addTarget(recorderSurface);
+
+            Surface previewSurface = new Surface(texture);
+            surfaces.add(previewSurface);
+            mCaptureBuilder.addTarget(previewSurface);
+
+            mCameraDevice.createCaptureSession(surfaces, new CameraCaptureSession.StateCallback() {
+                        @Override
+                        public void onConfigured(@NonNull CameraCaptureSession session) {
+                            Log.d(TAG, "onConfigured: bruce >>> flag");
+                            mPreviewSession = session;
+                            updatePreview();
+                        }
+
+                        @Override
+                        public void onConfigureFailed(@NonNull CameraCaptureSession session) {
+                            Log.e(TAG, "onConfigureFailed: bruce >>> flag");
+                        }
+                    }, null);
+        } catch (CameraAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+    boolean isFirstFilePathPrint = true;
+    private void openFile() {
+        String captureFileName = this.getExternalFilesDir("").toString() + "/yuv";
+        // 将帧数据写入文件，只打印一次文件路径
+        if (isFirstFilePathPrint) {
+            Log.d(TAG, "writeToFile: bruce >>> captureFile=" + captureFileName);
+            isFirstFilePathPrint = false;
+        }
+
+        file = new File(captureFileName);
+        try {
+            outputStream = new FileOutputStream(file);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void resetFile() {
+        closeFile();
+        file.delete();
+        openFile();
+    }
+
+    private void closeFile() {
+        if (outputStream != null) {
+            try {
+                outputStream.close();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     private void configureTransform(int viewWidth, int viewHeight) {
         Log.d(TAG, "configureTransform: bruce >>> width:" + viewWidth + ",height:" + viewHeight);
         if (null == mTextureView || null == mPreviewSize) {
@@ -338,6 +333,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (null == mCameraDevice) {
             return;
         }
+
         try {
             mCaptureBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
             mPreviewSession.setRepeatingRequest(mCaptureBuilder.build(), null, null);
@@ -376,9 +372,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private static Size chooseVideoSize(Size[] choices) {
-        for (Size size : choices) {
-            Log.d(TAG, "chooseVideoSize: bruce >>> surfaceTexture width:" + size.getWidth() + ",height:" + size.getHeight());
-        }
+        // 打印 SurfaceTexture 支持的分辨率
+//        for (Size size : choices) {
+//            Log.d(TAG, "chooseVideoSize: bruce >>> surfaceTexture width:" + size.getWidth() + ",height:" + size.getHeight());
+//        }
 
         for (Size size : choices) {
             if (size.getWidth() == size.getHeight() * 16 / 9 && size.getWidth() <= 1920) {
@@ -387,6 +384,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
         Log.e(TAG, "bruce >>> Couldn't find any suitable video size");
         return choices[choices.length - 1];
+    }
+
+    @Override
+    public void onClick(View view) {
+        switch (view.getId()) {
+            case R.id.switchCamera:
+                // switch camera
+                switchCamera();
+                break;
+        }
+    }
+
+    private void switchCamera() {
+        Log.d(TAG, "switchCamera: bruce >>>");
     }
 
     private void requestVideoPermissions() {
@@ -476,31 +487,20 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public void onPause() {
-        Log.d(TAG, "onPause: bruce >>>");
-        closeCamera();
+//        closeCamera();
         super.onPause();
     }
 
     @Override
     public void onResume() {
+//        openCamera();
         super.onResume();
     }
 
     @Override
     public void onDestroy() {
-        Log.d(TAG, "onDestroy: bruce >>>");
+        closeCamera();
         super.onDestroy();
     }
 
-    @Override
-    public void finish() {
-        Log.d(TAG, "finish: bruce >>>");
-        super.finish();
-    }
-
-    @Override
-    public void onStop() {
-        Log.d(TAG, "onStop: bruce >>>");
-        super.onStop();
-    }
 }
